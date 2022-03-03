@@ -16,7 +16,7 @@ include = [
 
 [dependencies]
 eframe = "0.16"
-chrono = "0.4"
+chrono = { git = "https://github.com/chronotope/chrono" }
 num-traits = "0.2"
 
 [[example]]
