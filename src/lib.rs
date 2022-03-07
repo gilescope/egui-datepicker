@@ -9,20 +9,14 @@
 //! use egui_datepicker::DatePicker;
 //! use core::ops::RangeInclusive;
 //!
-//! struct App<Tz>
-//! where
-//!     Tz: TimeZone,
-//!     Tz::Offset: Display,
+//! struct App
 //! {
-//!     date: chrono::Date<Tz>
+//!     date: chrono::naive::NaiveDate
 //! }
-//! impl<Tz> App<Tz>
-//! where
-//!     Tz: TimeZone,
-//!     Tz::Offset: Display,
+//! impl App
 //! {
 //!     fn draw_datepicker(&mut self, ui: &mut Ui) {
-//!         ui.add(DatePicker::<Tz, RangeInclusive<Date<Tz>>>::new("super_unique_id", &mut self.date));
+//!         ui.add(DatePicker::<RangeInclusive<NaiveDate>>::new("super_unique_id", &mut self.date));
 //!     }
 //! }
 //! ```
@@ -30,12 +24,9 @@
 //! [ex]: ./examples/simple.rs
 
 use core::ops::RangeBounds;
-use std::{fmt::Display, hash::Hash};
+use std::hash::Hash;
 
-pub use chrono::{
-    offset::{FixedOffset, Local, Utc},
-    Date,
-};
+pub use chrono::naive::NaiveDate;
 use chrono::{prelude::*, Duration};
 use eframe::{
     egui,
@@ -49,19 +40,17 @@ use num_traits::FromPrimitive;
 /// - format_string: `"%Y-%m-%d"`
 /// - weekend_func: `date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun`
 /// - placment: just underneath the date picker's button
-pub struct DatePicker<'a, 'b, Tz, R>
+pub struct DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<Date<Tz>>,
-    Tz: TimeZone,
-    Tz::Offset: Display,
+    R: RangeBounds<NaiveDate>,
 {
     id: Id,
-    date: &'a mut Date<Tz>,
+    date: &'a mut NaiveDate,
     sunday_first: bool,
     movable: bool,
     format_string: String,
     weekend_color: Color32,
-    weekend_func: fn(&Date<Tz>) -> bool,
+    weekend_func: fn(&NaiveDate) -> bool,
     highlight_weekend: bool,
 
     // when set, the date picker will restrict dates to the given range.
@@ -72,14 +61,12 @@ where
     position_offset: egui::Vec2,
 }
 
-impl<'a, 'b, Tz, R> DatePicker<'a, 'b, Tz, R>
+impl<'a, 'b, R> DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<Date<Tz>>,
-    Tz: TimeZone,
-    Tz::Offset: Display,
+    R: RangeBounds<NaiveDate>,
 {
     /// Create new date picker with unique id and mutable reference to date.
-    pub fn new<T: Hash>(id: T, date: &'a mut Date<Tz>) -> Self {
+    pub fn new<T: Hash>(id: T, date: &'a mut NaiveDate) -> Self {
         Self {
             id: Id::new(id),
             date,
@@ -136,7 +123,7 @@ where
     }
 
     /// Set function, which will decide if date is a weekend day or not.
-    pub fn weekend_days(mut self, is_weekend: fn(&Date<Tz>) -> bool) -> Self {
+    pub fn weekend_days(mut self, is_weekend: fn(&NaiveDate) -> bool) -> Self {
         self.weekend_func = is_weekend;
         self
     }
@@ -176,7 +163,7 @@ where
 
     /// Get number of days between first day of the month and Monday ( or Sunday if field
     /// `sunday_first` is set to `true` )
-    fn get_start_offset_of_calendar(&self, first_day: &Date<Tz>) -> u32 {
+    fn get_start_offset_of_calendar(&self, first_day: &NaiveDate) -> u32 {
         if self.sunday_first {
             first_day.weekday().num_days_from_sunday()
         } else {
@@ -186,7 +173,7 @@ where
 
     /// Get number of days between first day of the next month and Monday ( or Sunday if field
     /// `sunday_first` is set to `true` )
-    fn get_end_offset_of_calendar(&self, first_day: &Date<Tz>) -> u32 {
+    fn get_end_offset_of_calendar(&self, first_day: &NaiveDate) -> u32 {
         if self.sunday_first {
             (7 - (first_day).weekday().num_days_from_sunday()) % 7
         } else {
@@ -201,20 +188,20 @@ where
             let start_offset = self.get_start_offset_of_calendar(&first_day_of_current_month);
             let days_in_month = get_days_from_month(self.date.year(), self.date.month());
             let first_day_of_next_month =
-                first_day_of_current_month.clone() + Duration::days(days_in_month);
+                first_day_of_current_month + Duration::days(days_in_month);
             let end_offset = self.get_end_offset_of_calendar(&first_day_of_next_month);
             let start_date = first_day_of_current_month - Duration::days(start_offset.into());
             for i in 0..(start_offset as i64 + days_in_month + end_offset as i64) {
                 if i % 7 == 0 {
                     ui.end_row();
                 }
-                let d = start_date.clone() + Duration::days(i);
+                let d = start_date + Duration::days(i);
                 self.show_day_button(d, ui);
             }
         });
     }
 
-    fn show_day_button(&mut self, date: Date<Tz>, ui: &mut Ui) {
+    fn show_day_button(&mut self, date: NaiveDate, ui: &mut Ui) {
         let mut is_enabled = self.date != &date;
         if let Some(range) = self.allowed_range {
             is_enabled &= range.contains(&date);
@@ -240,16 +227,13 @@ where
         ui.horizontal(|ui| {
             self.show_month_control(ui);
             self.show_year_control(ui);
-            if ui.button("Today").clicked() {
-                *self.date = Utc::now().with_timezone(&self.date.timezone()).date();
-            }
         });
     }
 
     /// Draw button with text and add duration to current date when that button is clicked.
     fn date_step_button(&mut self, ui: &mut Ui, text: impl ToString, duration: Duration) {
         if ui.button(text.to_string()).clicked() {
-            *self.date = self.date.clone() + duration;
+            *self.date += duration;
         }
     }
 
@@ -287,11 +271,9 @@ where
     }
 }
 
-impl<'a, 'b, Tz, R> Widget for DatePicker<'a, 'b, Tz, R>
+impl<'a, 'b, R> Widget for DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<Date<Tz>>,
-    Tz: TimeZone,
-    Tz::Offset: Display,
+    R: RangeBounds<NaiveDate>,
 {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let formated_date = self.date.format(&self.format_string);
