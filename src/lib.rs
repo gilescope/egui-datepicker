@@ -7,6 +7,7 @@
 //! use chrono::prelude::*;
 //! use std::fmt::Display;
 //! use egui_datepicker::DatePicker;
+//! use core::ops::RangeInclusive;
 //!
 //! struct App<Tz>
 //! where
@@ -21,7 +22,7 @@
 //!     Tz::Offset: Display,
 //! {
 //!     fn draw_datepicker(&mut self, ui: &mut Ui) {
-//!         ui.add(DatePicker::new("super_unique_id", &mut self.date));
+//!         ui.add(DatePicker::<Tz, RangeInclusive<Date<Tz>>>::new("super_unique_id", &mut self.date));
 //!     }
 //! }
 //! ```
