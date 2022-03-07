@@ -255,19 +255,19 @@ where
     /// Draw drag value widget with current year and two buttons which substract and add 365 days
     /// to current date.
     fn show_year_control(&mut self, ui: &mut Ui) {
-        self.date_step_button(ui, "<", Duration::days(-365));
+        self.date_step_button(ui, "⬅", Duration::days(-365));
         let mut drag_year = self.date.year();
         ui.add(DragValue::new(&mut drag_year));
         if drag_year != self.date.year() {
             *self.date = self.date.with_year(drag_year).unwrap();
         }
-        self.date_step_button(ui, ">", Duration::days(365));
+        self.date_step_button(ui, "➡", Duration::days(365));
     }
 
     /// Draw label(will be combobox in future) with current month and two buttons which substract and add 30 days
     /// to current date.
     fn show_month_control(&mut self, ui: &mut Ui) {
-        self.date_step_button(ui, "<", Duration::days(-30));
+        self.date_step_button(ui, "⬅", Duration::days(-30));
         let month_string = chrono::Month::from_u32(self.date.month()).unwrap().name();
         // TODO: When https://github.com/emilk/egui/pull/543 is merged try to change label to combo box.
         ui.add(egui::Label::new(
@@ -282,7 +282,7 @@ where
         // if selected != self.date.month0() as usize {
         //     *self.date = self.date.with_month0(selected as u32).unwrap();
         // }
-        self.date_step_button(ui, ">", Duration::days(30));
+        self.date_step_button(ui, "➡", Duration::days(30));
     }
 }
 
