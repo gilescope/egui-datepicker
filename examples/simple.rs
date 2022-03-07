@@ -60,7 +60,26 @@ impl epi::App for ExampleApp {
                 ui.end_row();
                 ui.label("Restrict the range of input values.");
                 ui.add(
-                    DatePicker::new("noweekendhighlight", &mut self.date).restrict_range(&self.range),
+                    DatePicker::new("restrictrange", &mut self.date).restrict_range(&self.range),
+                );
+                ui.end_row();
+                ui.label("Align to centre");
+                ui.add(
+                    DatePicker::<Utc, ops::Range<Date<Utc>>>::new("aligncentre", &mut self.date)
+                        .placement(egui::Align2::CENTER_BOTTOM),
+                );
+                ui.end_row();
+                ui.label("Offset from default position");
+                ui.add(
+                    DatePicker::<Utc, ops::Range<Date<Utc>>>::new("offset", &mut self.date)
+                        .position_offset([12., 13.]),
+                );
+                ui.end_row();
+                ui.label("Offset from set position");
+                ui.add(
+                    DatePicker::<Utc, ops::Range<Date<Utc>>>::new("alignandoffset", &mut self.date)
+                        .placement(egui::Align2::LEFT_BOTTOM)
+                        .position_offset([10., -10.]),
                 );
             });
         });

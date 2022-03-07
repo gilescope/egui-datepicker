@@ -47,6 +47,7 @@ use num_traits::FromPrimitive;
 /// - movable: `false`
 /// - format_string: `"%Y-%m-%d"`
 /// - weekend_func: `date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun`
+/// - placment: just underneath the date picker's button
 pub struct DatePicker<'a, 'b, Tz, R>
 where
     R: RangeBounds<Date<Tz>>,
@@ -62,7 +63,12 @@ where
     weekend_func: fn(&Date<Tz>) -> bool,
     highlight_weekend: bool,
 
+    // when set, the date picker will restrict dates to the given range.
     allowed_range: Option<&'b R>,
+    // when set, will allow place the popup in the given position
+    placement: Option<egui::Align2>,
+
+    position_offset: egui::Vec2,
 }
 
 impl<'a, 'b, Tz, R> DatePicker<'a, 'b, Tz, R>
@@ -83,6 +89,8 @@ where
             weekend_func: |date| date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun,
             highlight_weekend: true,
             allowed_range: None,
+            placement: None,
+            position_offset: egui::Vec2{ x: 0., y: 0. },
         }
     }
 
@@ -99,6 +107,7 @@ where
     #[must_use]
     pub fn movable(mut self, flag: bool) -> Self {
         self.movable = flag;
+        self.placement = None;
         self
     }
 
@@ -131,8 +140,23 @@ where
         self
     }
 
+    /// The date picker will restrict dates to the given range.
     pub fn restrict_range(mut self, allowed_range: &'b R) -> Self {
         self.allowed_range = Some(allowed_range);
+        self
+    }
+
+    /// Set a placement for the datepicker to be put.
+    /// The window cannot be both placed and movable.
+    pub fn placement(mut self, align: egui::Align2) -> Self {
+        self.placement = Some(align);
+        self.movable = false;
+        self
+    }
+
+    /// Offset the popup from it's placement by a given amount.
+    pub fn position_offset(mut self, offset: impl Into<egui::Vec2>) -> Self {
+        self.position_offset = offset.into();
         self
     }
 
@@ -276,11 +300,16 @@ where
         }
 
         if ui.memory().is_popup_open(self.id) {
-            let mut area = Area::new(self.id)
-                .order(Order::Foreground)
-                .default_pos(button_response.rect.left_bottom());
-            if !self.movable {
-                area = area.movable(false);
+            let mut area = Area::new(self.id).order(Order::Foreground);
+
+            if let Some(align) = self.placement {
+                area = area.anchor(align, self.position_offset);
+            } else {
+                area = area
+                    .default_pos(button_response.rect.left_bottom() + self.position_offset);
+                if !self.movable {
+                    area = area.movable(false);
+                }
             }
             let area_response = area
                 .show(ui.ctx(), |ui| {
