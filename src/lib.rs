@@ -28,6 +28,7 @@
 //!
 //! [ex]: ./examples/simple.rs
 
+use core::ops::RangeBounds;
 use std::{fmt::Display, hash::Hash};
 
 pub use chrono::{
@@ -46,8 +47,9 @@ use num_traits::FromPrimitive;
 /// - movable: `false`
 /// - format_string: `"%Y-%m-%d"`
 /// - weekend_func: `date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun`
-pub struct DatePicker<'a, Tz>
+pub struct DatePicker<'a, 'b, Tz, R>
 where
+    R: RangeBounds<Date<Tz>>,
     Tz: TimeZone,
     Tz::Offset: Display,
 {
@@ -59,10 +61,13 @@ where
     weekend_color: Color32,
     weekend_func: fn(&Date<Tz>) -> bool,
     highlight_weekend: bool,
+
+    allowed_range: Option<&'b R>,
 }
 
-impl<'a, Tz> DatePicker<'a, Tz>
+impl<'a, 'b, Tz, R> DatePicker<'a, 'b, Tz, R>
 where
+    R: RangeBounds<Date<Tz>>,
     Tz: TimeZone,
     Tz::Offset: Display,
 {
@@ -77,6 +82,7 @@ where
             weekend_color: Color32::from_rgb(196, 0, 0),
             weekend_func: |date| date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun,
             highlight_weekend: true,
+            allowed_range: None,
         }
     }
 
@@ -122,6 +128,11 @@ where
     /// Set function, which will decide if date is a weekend day or not.
     pub fn weekend_days(mut self, is_weekend: fn(&Date<Tz>) -> bool) -> Self {
         self.weekend_func = is_weekend;
+        self
+    }
+
+    pub fn restrict_range(mut self, allowed_range: &'b R) -> Self {
+        self.allowed_range = Some(allowed_range);
         self
     }
 
@@ -179,7 +190,12 @@ where
     }
 
     fn show_day_button(&mut self, date: Date<Tz>, ui: &mut Ui) {
-        ui.add_enabled_ui(self.date != &date, |ui| {
+        let mut is_enabled = self.date != &date;
+        if let Some(range) = self.allowed_range {
+            is_enabled &= range.contains(&date);
+        };
+
+        ui.add_enabled_ui(is_enabled, |ui| {
             ui.centered_and_justified(|ui| {
                 if self.date.month() != date.month() {
                     ui.style_mut().visuals.button_frame = false;
@@ -246,8 +262,9 @@ where
     }
 }
 
-impl<'a, Tz> Widget for DatePicker<'a, Tz>
+impl<'a, 'b, Tz, R> Widget for DatePicker<'a, 'b, Tz, R>
 where
+    R: RangeBounds<Date<Tz>>,
     Tz: TimeZone,
     Tz::Offset: Display,
 {
