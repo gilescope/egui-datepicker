@@ -11,22 +11,22 @@
 //!
 //! struct App
 //! {
-//!     date: chrono::naive::NaiveDate
+//!     date: chrono::naive::NaiveDateTime
 //! }
 //! impl App
 //! {
 //!     fn draw_datepicker(&mut self, ui: &mut Ui) {
-//!         ui.add(DatePicker::<RangeInclusive<NaiveDate>>::new("super_unique_id", &mut self.date));
+//!         ui.add(DatePicker::<RangeInclusive<NaiveDateTime>>::new("super_unique_id", &mut self.date));
 //!     }
 //! }
 //! ```
 //!
 //! [ex]: ./examples/simple.rs
 
-use core::ops::RangeBounds;
+use core::ops::{RangeBounds, Bound};
 use std::hash::Hash;
 
-pub use chrono::naive::NaiveDate;
+pub use chrono::naive::NaiveDateTime;
 use chrono::{prelude::*, Duration};
 use eframe::{
     egui,
@@ -42,15 +42,15 @@ use num_traits::FromPrimitive;
 /// - placment: just underneath the date picker's button
 pub struct DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<NaiveDate>,
+    R: RangeBounds<NaiveDateTime>,
 {
     id: Id,
-    date: &'a mut NaiveDate,
+    date: &'a mut NaiveDateTime,
     sunday_first: bool,
     movable: bool,
     format_string: String,
     weekend_color: Color32,
-    weekend_func: fn(&NaiveDate) -> bool,
+    weekend_func: fn(&NaiveDateTime) -> bool,
     highlight_weekend: bool,
 
     // when set, the date picker will restrict dates to the given range.
@@ -63,10 +63,10 @@ where
 
 impl<'a, 'b, R> DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<NaiveDate>,
+    R: RangeBounds<NaiveDateTime>,
 {
     /// Create new date picker with unique id and mutable reference to date.
-    pub fn new<T: Hash>(id: T, date: &'a mut NaiveDate) -> Self {
+    pub fn new<T: Hash>(id: T, date: &'a mut NaiveDateTime) -> Self {
         Self {
             id: Id::new(id),
             date,
@@ -123,7 +123,7 @@ where
     }
 
     /// Set function, which will decide if date is a weekend day or not.
-    pub fn weekend_days(mut self, is_weekend: fn(&NaiveDate) -> bool) -> Self {
+    pub fn weekend_days(mut self, is_weekend: fn(&NaiveDateTime) -> bool) -> Self {
         self.weekend_func = is_weekend;
         self
     }
@@ -163,7 +163,7 @@ where
 
     /// Get number of days between first day of the month and Monday ( or Sunday if field
     /// `sunday_first` is set to `true` )
-    fn get_start_offset_of_calendar(&self, first_day: &NaiveDate) -> u32 {
+    fn get_start_offset_of_calendar(&self, first_day: &NaiveDateTime) -> u32 {
         if self.sunday_first {
             first_day.weekday().num_days_from_sunday()
         } else {
@@ -173,7 +173,7 @@ where
 
     /// Get number of days between first day of the next month and Monday ( or Sunday if field
     /// `sunday_first` is set to `true` )
-    fn get_end_offset_of_calendar(&self, first_day: &NaiveDate) -> u32 {
+    fn get_end_offset_of_calendar(&self, first_day: &NaiveDateTime) -> u32 {
         if self.sunday_first {
             (7 - (first_day).weekday().num_days_from_sunday()) % 7
         } else {
@@ -201,10 +201,19 @@ where
         });
     }
 
-    fn show_day_button(&mut self, date: NaiveDate, ui: &mut Ui) {
+    fn show_day_button(&mut self, date: NaiveDateTime, ui: &mut Ui) {
         let mut is_enabled = self.date != &date;
+
         if let Some(range) = self.allowed_range {
-            is_enabled &= range.contains(&date);
+            let timepassed = Duration::hours(self.date.hour() as i64)
+                + Duration::minutes(self.date.minute() as i64);
+            let timeleft = Duration::days(1) - timepassed;
+
+            // round the date up and down to the nearest date
+            let date_lower = date - timepassed;
+            let date_upper = date + timeleft;
+
+            is_enabled &= range.contains(&date_lower) | range.contains(&date_upper);
         };
 
         ui.add_enabled_ui(is_enabled, |ui| {
@@ -222,9 +231,69 @@ where
         });
     }
 
+    fn show_time_editor(&mut self, ui: &mut Ui) {
+
+        let (hour_range, min_range) = if let Some(range) = self.allowed_range {
+
+            let day_before = *self.date - Duration::days(1);
+            let day_after = *self.date + Duration::days(1);
+
+            let (start_hour, start_min) = match range.start_bound() {
+                Bound::Included(dt) if day_before < *dt => {
+                    if dt.hour() == self.date.hour() {
+                        (dt.hour(), dt.minute())
+                    } else {
+                        (dt.hour(), 0)
+                    }
+                },
+                Bound::Excluded(dt) if day_before <= *dt => {
+                    if dt.hour() == self.date.hour() {
+                        (dt.hour(), dt.minute() + 1)
+                    } else {
+                        (dt.hour(), 0)
+                    }
+                },
+                _ => (0, 0),
+            };
+            let (end_hour, end_min) = match range.end_bound() {
+                Bound::Included(dt) if day_after > *dt => {
+                    if dt.hour() == self.date.hour() {
+                        (dt.hour(), dt.minute())
+                    } else {
+                        (dt.hour(), 59)
+                    }
+                },
+                Bound::Excluded(dt) if day_after >= *dt => {
+                    if dt.hour() == self.date.hour() {
+                        (dt.hour(), dt.minute() - 1)
+                    } else {
+                        (dt.hour(), 59)
+                    }
+                },
+                _ => (23, 59),
+            };
+
+            (start_hour..=end_hour, start_min..=end_min)
+        } else {
+            (0..=23, 0..=59)
+        };
+
+        let curr_hour = self.date.hour() as i64;
+        let curr_min = self.date.minute() as i64;
+        let mut hour = curr_hour;
+        let mut min = curr_min;
+
+        ui.add(egui::DragValue::new(&mut hour).clamp_range(hour_range));
+        ui.label(":");
+        ui.add(egui::DragValue::new(&mut min).clamp_range(min_range));
+
+        *self.date += Duration::hours(hour - curr_hour) + Duration::minutes(min - curr_min);
+    }
+
     /// Draw current month and buttons for next and previous month.
     fn show_header(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
+            self.show_time_editor(ui);
             self.show_month_control(ui);
             self.show_year_control(ui);
         });
@@ -273,7 +342,7 @@ where
 
 impl<'a, 'b, R> Widget for DatePicker<'a, 'b, R>
 where
-    R: RangeBounds<NaiveDate>,
+    R: RangeBounds<NaiveDateTime>,
 {
     fn ui(mut self, ui: &mut Ui) -> Response {
         let formated_date = self.date.format(&self.format_string);
