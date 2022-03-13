@@ -205,15 +205,11 @@ where
         let mut is_enabled = self.date != &date;
 
         if let Some(range) = self.allowed_range {
-            let timepassed = Duration::hours(self.date.hour() as i64)
-                + Duration::minutes(self.date.minute() as i64);
-            let timeleft = Duration::days(1) - timepassed;
-
             // round the date up and down to the nearest date
-            let date_lower = date - timepassed;
-            let date_upper = date + timeleft;
+            let day_beginning = date.date().and_hms(0, 0, 0);
+            let day_ending = day_beginning + Duration::days(1);
 
-            is_enabled &= range.contains(&date_lower) | range.contains(&date_upper);
+            is_enabled &= range.contains(&day_beginning) | range.contains(&day_ending);
         };
 
         ui.add_enabled_ui(is_enabled, |ui| {
@@ -235,18 +231,18 @@ where
 
         let (hour_range, min_range) = if let Some(range) = self.allowed_range {
 
-            let day_before = *self.date - Duration::days(1);
-            let day_after = *self.date + Duration::days(1);
+            let day_beginning = self.date.date().and_hms(0, 0, 0);
+            let day_ending = day_beginning + Duration::days(1);
 
             let (start_hour, start_min) = match range.start_bound() {
-                Bound::Included(dt) if day_before < *dt => {
+                Bound::Included(dt) if day_beginning < *dt => {
                     if dt.hour() == self.date.hour() {
                         (dt.hour(), dt.minute())
                     } else {
                         (dt.hour(), 0)
                     }
                 },
-                Bound::Excluded(dt) if day_before <= *dt => {
+                Bound::Excluded(dt) if day_beginning <= *dt => {
                     if dt.hour() == self.date.hour() {
                         (dt.hour(), dt.minute() + 1)
                     } else {
@@ -256,14 +252,14 @@ where
                 _ => (0, 0),
             };
             let (end_hour, end_min) = match range.end_bound() {
-                Bound::Included(dt) if day_after > *dt => {
+                Bound::Included(dt) if day_ending > *dt => {
                     if dt.hour() == self.date.hour() {
                         (dt.hour(), dt.minute())
                     } else {
                         (dt.hour(), 59)
                     }
                 },
-                Bound::Excluded(dt) if day_after >= *dt => {
+                Bound::Excluded(dt) if day_ending >= *dt => {
                     if dt.hour() == self.date.hour() {
                         (dt.hour(), dt.minute() - 1)
                     } else {
