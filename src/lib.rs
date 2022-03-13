@@ -23,11 +23,11 @@
 //!
 //! [ex]: ./examples/simple.rs
 
-use core::ops::{RangeBounds, Bound};
+use core::ops::{Bound, RangeBounds};
 use std::hash::Hash;
 
 pub use chrono::naive::NaiveDateTime;
-use chrono::naive::{MIN_DATE, MAX_DATE};
+use chrono::naive::{MAX_DATE, MIN_DATE};
 use chrono::{prelude::*, Duration};
 use eframe::{
     egui,
@@ -79,7 +79,7 @@ where
             highlight_weekend: true,
             allowed_range: None,
             placement: None,
-            position_offset: egui::Vec2{ x: 0., y: 0. },
+            position_offset: egui::Vec2 { x: 0., y: 0. },
         }
     }
 
@@ -218,7 +218,6 @@ where
 
             if self.date.month() != date.month() {
                 button = button.frame(false);
-
             } else if self.date == &date {
                 // if the date is the selected date,
                 // give the button an fill with the 'selection style'
@@ -234,50 +233,49 @@ where
     }
 
     fn show_time_editor(&mut self, ui: &mut Ui) {
+        let (hour_range, min_range) = match self.allowed_range {
+            Some(range) => {
+                let day_beginning = self.date.date().and_hms(0, 0, 0);
+                let day_ending = day_beginning + Duration::days(1);
 
-        let (hour_range, min_range) = if let Some(range) = self.allowed_range {
+                let (start_hour, start_min) = match range.start_bound() {
+                    Bound::Included(dt) if day_beginning < *dt => {
+                        if dt.hour() == self.date.hour() {
+                            (dt.hour(), dt.minute())
+                        } else {
+                            (dt.hour(), 0)
+                        }
+                    }
+                    Bound::Excluded(dt) if day_beginning <= *dt => {
+                        if dt.hour() == self.date.hour() {
+                            (dt.hour(), dt.minute() + 1)
+                        } else {
+                            (dt.hour(), 0)
+                        }
+                    }
+                    _ => (0, 0),
+                };
+                let (end_hour, end_min) = match range.end_bound() {
+                    Bound::Included(dt) if day_ending > *dt => {
+                        if dt.hour() == self.date.hour() {
+                            (dt.hour(), dt.minute())
+                        } else {
+                            (dt.hour(), 59)
+                        }
+                    }
+                    Bound::Excluded(dt) if day_ending >= *dt => {
+                        if dt.hour() == self.date.hour() {
+                            (dt.hour(), dt.minute() - 1)
+                        } else {
+                            (dt.hour(), 59)
+                        }
+                    }
+                    _ => (23, 59),
+                };
 
-            let day_beginning = self.date.date().and_hms(0, 0, 0);
-            let day_ending = day_beginning + Duration::days(1);
-
-            let (start_hour, start_min) = match range.start_bound() {
-                Bound::Included(dt) if day_beginning < *dt => {
-                    if dt.hour() == self.date.hour() {
-                        (dt.hour(), dt.minute())
-                    } else {
-                        (dt.hour(), 0)
-                    }
-                },
-                Bound::Excluded(dt) if day_beginning <= *dt => {
-                    if dt.hour() == self.date.hour() {
-                        (dt.hour(), dt.minute() + 1)
-                    } else {
-                        (dt.hour(), 0)
-                    }
-                },
-                _ => (0, 0),
-            };
-            let (end_hour, end_min) = match range.end_bound() {
-                Bound::Included(dt) if day_ending > *dt => {
-                    if dt.hour() == self.date.hour() {
-                        (dt.hour(), dt.minute())
-                    } else {
-                        (dt.hour(), 59)
-                    }
-                },
-                Bound::Excluded(dt) if day_ending >= *dt => {
-                    if dt.hour() == self.date.hour() {
-                        (dt.hour(), dt.minute() - 1)
-                    } else {
-                        (dt.hour(), 59)
-                    }
-                },
-                _ => (23, 59),
-            };
-
-            (start_hour..=end_hour, start_min..=end_min)
-        } else {
-            (0..=23, 0..=59)
+                (start_hour..=end_hour, start_min..=end_min)
+            }
+            None => (0..=23, 0..=59),
         };
 
         let curr_hour = self.date.hour() as i64;
@@ -375,8 +373,7 @@ where
             if let Some(align) = self.placement {
                 area = area.anchor(align, self.position_offset);
             } else {
-                area = area
-                    .default_pos(button_response.rect.left_bottom() + self.position_offset);
+                area = area.default_pos(button_response.rect.left_bottom() + self.position_offset);
                 if !self.movable {
                     area = area.movable(false);
                 }

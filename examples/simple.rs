@@ -1,5 +1,5 @@
-use core::ops;
 use chrono::{Datelike, Duration};
+use core::ops;
 use eframe::{
     egui::{self, Color32},
     epi,
@@ -12,7 +12,6 @@ struct ExampleApp {
 }
 
 impl Default for ExampleApp {
-
     fn default() -> Self {
         let date = chrono::Utc::now().naive_utc();
         let range = (date - Duration::weeks(2))..=(date + Duration::weeks(1));
@@ -30,32 +29,54 @@ impl epi::App for ExampleApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Grid::new("exaamples_grid").show(ui, |ui| {
                 ui.label("Default");
-                ui.add(DatePicker::<ops::Range<NaiveDateTime>>::new("default", &mut self.date));
+                ui.add(DatePicker::<ops::Range<NaiveDateTime>>::new(
+                    "default",
+                    &mut self.date,
+                ));
                 ui.end_row();
                 ui.label("Sunday first");
-                ui.add(DatePicker::<ops::Range<NaiveDateTime>>::new("sundayfirst", &mut self.date).sunday_first(true));
+                ui.add(
+                    DatePicker::<ops::Range<NaiveDateTime>>::new("sundayfirst", &mut self.date)
+                        .sunday_first(true),
+                );
                 ui.end_row();
                 ui.label("Movable popup");
-                ui.add(DatePicker::<ops::Range<NaiveDateTime>>::new("movable", &mut self.date).movable(true));
+                ui.add(
+                    DatePicker::<ops::Range<NaiveDateTime>>::new("movable", &mut self.date)
+                        .movable(true),
+                );
                 ui.end_row();
                 ui.label("Different format");
-                ui.add(DatePicker::<ops::Range<NaiveDateTime>>::new("differentformat", &mut self.date).date_format(&"%d/%m/%Y"));
+                ui.add(
+                    DatePicker::<ops::Range<NaiveDateTime>>::new("differentformat", &mut self.date)
+                        .date_format(&"%d/%m/%Y"),
+                );
                 ui.end_row();
                 ui.label("Disable weekend highlight");
                 ui.add(
-                    DatePicker::<ops::Range<NaiveDateTime>>::new("noweekendhighlight", &mut self.date).highlight_weekend(false),
+                    DatePicker::<ops::Range<NaiveDateTime>>::new(
+                        "noweekendhighlight",
+                        &mut self.date,
+                    )
+                    .highlight_weekend(false),
                 );
                 ui.end_row();
                 ui.label("Different weekend color");
                 ui.add(
-                    DatePicker::<ops::Range<NaiveDateTime>>::new("differentweekendcolor", &mut self.date)
-                        .highlight_weekend_color(Color32::from_rgb(0, 196, 0)),
+                    DatePicker::<ops::Range<NaiveDateTime>>::new(
+                        "differentweekendcolor",
+                        &mut self.date,
+                    )
+                    .highlight_weekend_color(Color32::from_rgb(0, 196, 0)),
                 );
                 ui.end_row();
                 ui.label("Different weekend days, i.e. holidays, Christmas, etc");
                 ui.add(
-                    DatePicker::<ops::Range<NaiveDateTime>>::new("differentweekenddays", &mut self.date)
-                        .weekend_days(|date| date.day() % 2 == 0),
+                    DatePicker::<ops::Range<NaiveDateTime>>::new(
+                        "differentweekenddays",
+                        &mut self.date,
+                    )
+                    .weekend_days(|date| date.day() % 2 == 0),
                 );
                 ui.end_row();
                 ui.label("Restrict the range of input values.");
