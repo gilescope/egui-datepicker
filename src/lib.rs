@@ -212,18 +212,23 @@ where
             is_enabled &= range.contains(&day_beginning) | range.contains(&day_ending);
         };
 
-        ui.add_enabled_ui(is_enabled, |ui| {
-            ui.centered_and_justified(|ui| {
-                if self.date.month() != date.month() {
-                    ui.style_mut().visuals.button_frame = false;
-                }
-                if self.highlight_weekend && (self.weekend_func)(&date) {
-                    ui.style_mut().visuals.override_text_color = Some(self.weekend_color);
-                }
-                if ui.button(date.day().to_string()).clicked() {
-                    *self.date = date;
-                }
-            });
+        ui.centered_and_justified(|ui| {
+            let mut button = egui::Button::new(date.day().to_string());
+
+            if self.date.month() != date.month() {
+                button = button.frame(false);
+
+            } else if self.date == &date {
+                // if the date is the selected date,
+                // give the button an fill with the 'selection style'
+                button = button.fill(ui.style().visuals.selection.bg_fill);
+            }
+            if self.highlight_weekend && (self.weekend_func)(&date) {
+                ui.style_mut().visuals.override_text_color = Some(self.weekend_color);
+            }
+            if ui.add_enabled(is_enabled, button).clicked() {
+                *self.date = date;
+            }
         });
     }
 
