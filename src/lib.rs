@@ -27,6 +27,7 @@ use core::ops::{RangeBounds, Bound};
 use std::hash::Hash;
 
 pub use chrono::naive::NaiveDateTime;
+use chrono::naive::{MIN_DATE, MAX_DATE};
 use chrono::{prelude::*, Duration};
 use eframe::{
     egui,
@@ -302,20 +303,36 @@ where
 
     /// Draw button with text and add duration to current date when that button is clicked.
     fn date_step_button(&mut self, ui: &mut Ui, text: impl ToString, duration: Duration) {
-        if ui.button(text.to_string()).clicked() {
-            *self.date += duration;
-        }
+        let new_date = *self.date + duration;
+
+        let is_enabled = match self.allowed_range {
+            Some(range) => range.contains(&new_date),
+            None => true,
+        };
+        ui.add_enabled(is_enabled, egui::Button::new(text.to_string()))
+            .clicked()
+            .then(|| *self.date = new_date);
     }
 
     /// Draw drag value widget with current year and two buttons which substract and add 365 days
     /// to current date.
     fn show_year_control(&mut self, ui: &mut Ui) {
         self.date_step_button(ui, "⬅", Duration::days(-365));
-        let mut drag_year = self.date.year();
-        ui.add(DragValue::new(&mut drag_year));
-        if drag_year != self.date.year() {
-            *self.date = self.date.with_year(drag_year).unwrap();
+
+        // label used instead of drag value, if there is a range restriction imposed
+        // TODO: change clamp_range to enforce imposed range restriction
+        if self.allowed_range.is_none() {
+            let mut drag_year = self.date.year();
+            ui.add(DragValue::new(&mut drag_year).clamp_range(MIN_DATE.year()..=MAX_DATE.year()));
+
+            if drag_year != self.date.year() {
+                // `unwrap()` should be safe due to drag value being clamped to the accepted range.
+                *self.date = self.date.with_year(drag_year).unwrap();
+            }
+        } else {
+            ui.label(self.date.year().to_string());
         }
+
         self.date_step_button(ui, "➡", Duration::days(365));
     }
 
