@@ -303,13 +303,23 @@ where
     fn date_step_button(&mut self, ui: &mut Ui, text: impl ToString, duration: Duration) {
         let new_date = *self.date + duration;
 
-        let is_enabled = match self.allowed_range {
-            Some(range) => range.contains(&new_date),
-            None => true,
-        };
-        ui.add_enabled(is_enabled, egui::Button::new(text.to_string()))
+        ui.button(text.to_string())
             .clicked()
-            .then(|| *self.date = new_date);
+            .then(|| match self.allowed_range {
+                None => *self.date = new_date,
+                // Ensure the bound is never left.
+                Some(range) => match (range.start_bound(), range.end_bound()) {
+                    (Bound::Included(lower_b), _) if new_date < *lower_b => *self.date = *lower_b,
+                    (Bound::Excluded(lower_b), _) if new_date <= *lower_b
+                        => *self.date = *lower_b + Duration::nanoseconds(1),
+
+                    (_, Bound::Included(upper_b)) if *upper_b < new_date => *self.date = *upper_b,
+                    (_, Bound::Excluded(upper_b)) if *upper_b <= new_date
+                        => *self.date = *upper_b - Duration::nanoseconds(1),
+
+                    _ => *self.date = new_date,
+                }
+            });
     }
 
     /// Draw drag value widget with current year and two buttons which substract and add 365 days
